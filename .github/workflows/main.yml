@@ -16,7 +16,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
 
@@ -24,12 +24,13 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
 
-      - name: Build Release x64
+      - name: Disable PCH and Build
         shell: cmd
         run: |
           msbuild IdaLovesMe.sln ^
             /p:Configuration=Release ^
             /p:Platform=x64 ^
+            /p:PrecompiledHeader=NotUsing ^
             /p:UsePrecompiledHeader=false ^
             /m
 
@@ -43,7 +44,7 @@ jobs:
       - name: Upload DLL
         uses: actions/upload-artifact@v4
         with:
-          name: built-dll
+          name: IdaLovesMe-DLL
           path: |
-            **/Release/**/*.dll
-            **/x64/Release/**/*.dll
+            **\x64\Release\*.dll
+            **\Release\*.dll
