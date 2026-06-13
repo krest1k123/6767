@@ -30,6 +30,7 @@ jobs:
           msbuild IdaLovesMe.sln ^
             /p:Configuration=Release ^
             /p:Platform=x64 ^
+            /p:UsePrecompiledHeader=false ^
             /m
 
 
@@ -39,7 +40,7 @@ jobs:
           dir /s /b *.dll
 
 
-      - name: Upload DLL artifact
+      - name: Upload DLL
         uses: actions/upload-artifact@v4
         with:
           name: built-dll
