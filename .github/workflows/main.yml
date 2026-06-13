@@ -5,11 +5,8 @@ on:
     branches:
       - main
       - master
-
   pull_request:
-
   workflow_dispatch:
-
 
 jobs:
   build:
@@ -19,19 +16,43 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
+      - name: Setup NuGet
+        uses: nuget/setup-nuget@v2
 
-      - name: Disable PCH
+      - name: Restore legacy DirectX D3DX package
+        shell: cmd
+        run: |
+          nuget install Microsoft.DXSDK.D3DX -Version 9.29.952.8 -OutputDirectory packages
+
+      - name: Patch vcxproj for C++17
         shell: powershell
         run: |
-          (Get-Content IdaLovesMe\IdaLovesMe.vcxproj) `
-          -replace '<PrecompiledHeader>Use</PrecompiledHeader>', '<PrecompiledHeader>NotUsing</PrecompiledHeader>' `
-          -replace '<PrecompiledHeader>UseForBuild</PrecompiledHeader>', '<PrecompiledHeader>NotUsing</PrecompiledHeader>' `
-          | Set-Content IdaLovesMe\IdaLovesMe.vcxproj
+          $proj = "IdaLovesMe\IdaLovesMe.vcxproj"
+          $xml = Get-Content $proj -Raw
+          if ($xml -notmatch "<LanguageStandard>stdcpp17</LanguageStandard>") {
+            $xml = $xml -replace "</PropertyGroup>\s*<ImportGroup Label=""PropertySheets"">", "  <LanguageStandard>stdcpp17</LanguageStandard>`r`n</PropertyGroup>`r`n<ImportGroup Label=""PropertySheets"">"
+          }
+          Set-Content $proj $xml -Encoding UTF8
 
+      - name: Patch vcxproj to import D3DX targets
+        shell: powershell
+        run: |
+          $proj = "IdaLovesMe\IdaLovesMe.vcxproj"
+          $targets = '..\packages\Microsoft.DXSDK.D3DX.9.29.952.8\build\native\Microsoft.DXSDK.D3DX.targets'
+          $xml = Get-Content $proj -Raw
+
+          if ($xml -notmatch [regex]::Escape($targets)) {
+            $insert = @"
+  <Import Project="$targets" Condition="Exists('$targets')" />
+  <Error Condition="!Exists('$targets')" Text="Missing Microsoft.DXSDK.D3DX targets: $targets" />
+"@
+            $xml = $xml -replace "</Project>\s*$", "$insert</Project>"
+          }
+
+          Set-Content $proj $xml -Encoding UTF8
 
       - name: Build Release x64
         shell: cmd
@@ -39,14 +60,13 @@ jobs:
           msbuild IdaLovesMe.sln ^
             /p:Configuration=Release ^
             /p:Platform=x64 ^
+            /p:LanguageStandard=stdcpp17 ^
             /m
-
 
       - name: Find DLL
         shell: cmd
         run: |
           dir /s /b *.dll
-
 
       - name: Upload DLL
         uses: actions/upload-artifact@v4
