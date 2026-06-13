@@ -24,14 +24,21 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
 
-      - name: Disable PCH and Build
+      - name: Disable PCH
+        shell: powershell
+        run: |
+          (Get-Content IdaLovesMe\IdaLovesMe.vcxproj) `
+          -replace '<PrecompiledHeader>Use</PrecompiledHeader>', '<PrecompiledHeader>NotUsing</PrecompiledHeader>' `
+          -replace '<PrecompiledHeader>UseForBuild</PrecompiledHeader>', '<PrecompiledHeader>NotUsing</PrecompiledHeader>' `
+          | Set-Content IdaLovesMe\IdaLovesMe.vcxproj
+
+
+      - name: Build Release x64
         shell: cmd
         run: |
           msbuild IdaLovesMe.sln ^
             /p:Configuration=Release ^
             /p:Platform=x64 ^
-            /p:PrecompiledHeader=NotUsing ^
-            /p:UsePrecompiledHeader=false ^
             /m
 
 
